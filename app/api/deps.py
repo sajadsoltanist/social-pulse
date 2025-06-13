@@ -2,9 +2,16 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.db.database import get_db
-from app.infrastructure.db.repositories import UserRepositoryImpl, ProfileRepositoryImpl
+from app.infrastructure.db.repositories import (
+    UserRepositoryImpl, 
+    ProfileRepositoryImpl,
+    FollowerRepositoryImpl,
+    AlertRepositoryImpl
+)
+from app.infrastructure.external.instagram_client import InstagramClientImpl
 from app.services.auth_service import AuthServiceImpl
 from app.services.profile_service import ProfileServiceImpl
+from app.services.monitoring_service import MonitoringServiceImpl
 from app.core.entities import User
 from app.core.exceptions import InvalidCredentialsError, UserNotFoundError, TokenExpiredError
 
@@ -25,6 +32,29 @@ async def get_profile_repository(db: AsyncSession = Depends(get_db)) -> ProfileR
 
 async def get_profile_service(profile_repo: ProfileRepositoryImpl = Depends(get_profile_repository)) -> ProfileServiceImpl:
     return ProfileServiceImpl(profile_repo)
+
+
+async def get_follower_repository(db: AsyncSession = Depends(get_db)) -> FollowerRepositoryImpl:
+    return FollowerRepositoryImpl(db)
+
+
+async def get_alert_repository(db: AsyncSession = Depends(get_db)) -> AlertRepositoryImpl:
+    return AlertRepositoryImpl(db)
+
+
+async def get_instagram_service() -> InstagramClientImpl:
+    service = InstagramClientImpl()
+    await service.initialize()
+    return service
+
+
+async def get_monitoring_service(
+    profile_repo: ProfileRepositoryImpl = Depends(get_profile_repository),
+    follower_repo: FollowerRepositoryImpl = Depends(get_follower_repository),
+    alert_repo: AlertRepositoryImpl = Depends(get_alert_repository),
+    instagram_service: InstagramClientImpl = Depends(get_instagram_service)
+) -> MonitoringServiceImpl:
+    return MonitoringServiceImpl(profile_repo, follower_repo, alert_repo, instagram_service)
 
 
 async def get_current_user(

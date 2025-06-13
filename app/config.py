@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 
@@ -12,22 +12,24 @@ class Config(BaseSettings):
     # Security
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
+    JWT_EXPIRE_MINUTES: int = 30
     
     # Instagram API
-    INSTAGRAM_USERNAME: Optional[str] = None
-    INSTAGRAM_PASSWORD: Optional[str] = None
+    INSTAGRAM_USERNAME: str = ""
+    INSTAGRAM_PASSWORD: str = ""
+    INSTAGRAM_SESSION_PATH: str = "./data/instagram_session.json"
     
     # Telegram Bot
-    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_BOT_TOKEN: str = ""
     
     # Redis/Celery
     REDIS_URL: str = "redis://localhost:6379/0"
-    CELERY_BROKER_URL: Optional[str] = None
-    CELERY_RESULT_BACKEND: Optional[str] = None
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
     
     # Monitoring
     MONITORING_INTERVAL_MINUTES: int = 15
+    MONITORING_DELAY_RANGE: List[int] = [1, 3]
     
     # Environment
     DEBUG: bool = False
@@ -36,6 +38,7 @@ class Config(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra fields from .env
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
