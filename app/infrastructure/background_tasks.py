@@ -53,12 +53,21 @@ celery_app.conf.beat_schedule = {
 
 def run_async_task(coro):
     """Helper function to run async code in Celery tasks safely"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import nest_asyncio
+            nest_asyncio.apply()
+            return loop.run_until_complete(coro)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
 
 async def run_monitoring_cycle():
@@ -71,28 +80,28 @@ async def run_monitoring_cycle():
     from app.config import get_config
     from app.infrastructure.external.telegram_client import TelegramClientImpl
     config = get_config()
-    telegram_service = TelegramClientImpl(config)
     
-    # Create database session
-    async with AsyncSessionLocal() as session:
-        # Create repositories
-        user_repo = UserRepositoryImpl(session)
-        profile_repo = ProfileRepositoryImpl(session)
-        follower_repo = FollowerRepositoryImpl(session)
-        alert_repo = AlertRepositoryImpl(session)
-        
-        # Create monitoring service
-        monitoring_service = MonitoringServiceImpl(
-            user_repository=user_repo,
-            profile_repository=profile_repo,
-            follower_repository=follower_repo,
-            alert_repository=alert_repo,
-            instagram_service=instagram_service,
-            telegram_service=telegram_service
-        )
-        
-        # Run monitoring cycle
-        return await monitoring_service.run_monitoring_cycle()
+    async with TelegramClientImpl(config) as telegram_service:
+        # Create database session
+        async with AsyncSessionLocal() as session:
+            # Create repositories
+            user_repo = UserRepositoryImpl(session)
+            profile_repo = ProfileRepositoryImpl(session)
+            follower_repo = FollowerRepositoryImpl(session)
+            alert_repo = AlertRepositoryImpl(session)
+            
+            # Create monitoring service
+            monitoring_service = MonitoringServiceImpl(
+                user_repository=user_repo,
+                profile_repository=profile_repo,
+                follower_repository=follower_repo,
+                alert_repository=alert_repo,
+                instagram_service=instagram_service,
+                telegram_service=telegram_service
+            )
+            
+            # Run monitoring cycle
+            return await monitoring_service.run_monitoring_cycle()
 
 
 async def run_profile_check(profile_id: int):
@@ -105,44 +114,44 @@ async def run_profile_check(profile_id: int):
     from app.config import get_config
     from app.infrastructure.external.telegram_client import TelegramClientImpl
     config = get_config()
-    telegram_service = TelegramClientImpl(config)
     
-    # Create database session
-    async with AsyncSessionLocal() as session:
-        # Create repositories
-        user_repo = UserRepositoryImpl(session)
-        profile_repo = ProfileRepositoryImpl(session)
-        follower_repo = FollowerRepositoryImpl(session)
-        alert_repo = AlertRepositoryImpl(session)
-        
-        # Create monitoring service
-        monitoring_service = MonitoringServiceImpl(
-            user_repository=user_repo,
-            profile_repository=profile_repo,
-            follower_repository=follower_repo,
-            alert_repository=alert_repo,
-            instagram_service=instagram_service,
-            telegram_service=telegram_service
-        )
-        
-        # Check single profile
-        result = await monitoring_service.check_single_profile(profile_id)
-        
-        if result:
-            # Process alerts
-            alerts = await monitoring_service.process_alerts(profile_id, result.followers_count)
+    async with TelegramClientImpl(config) as telegram_service:
+        # Create database session
+        async with AsyncSessionLocal() as session:
+            # Create repositories
+            user_repo = UserRepositoryImpl(session)
+            profile_repo = ProfileRepositoryImpl(session)
+            follower_repo = FollowerRepositoryImpl(session)
+            alert_repo = AlertRepositoryImpl(session)
             
-            return {
-                "profile_id": profile_id,
-                "follower_count": result.followers_count,
-                "alerts_triggered": len(alerts),
-                "status": "updated"
-            }
-        else:
-            return {
-                "profile_id": profile_id,
-                "status": "no_change"
-            }
+            # Create monitoring service
+            monitoring_service = MonitoringServiceImpl(
+                user_repository=user_repo,
+                profile_repository=profile_repo,
+                follower_repository=follower_repo,
+                alert_repository=alert_repo,
+                instagram_service=instagram_service,
+                telegram_service=telegram_service
+            )
+            
+            # Check single profile
+            result = await monitoring_service.check_single_profile(profile_id)
+            
+            if result:
+                # Process alerts
+                alerts = await monitoring_service.process_alerts(profile_id, result.followers_count)
+                
+                return {
+                    "profile_id": profile_id,
+                    "follower_count": result.followers_count,
+                    "alerts_triggered": len(alerts),
+                    "status": "updated"
+                }
+            else:
+                return {
+                    "profile_id": profile_id,
+                    "status": "no_change"
+                }
 
 
 @celery_app.task(bind=True, name='monitor_all_profiles')
