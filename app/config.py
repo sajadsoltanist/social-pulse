@@ -21,6 +21,7 @@ class Config(BaseSettings):
     
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_API_URL: str = "https://api.telegram.org"
     
     # Redis/Celery
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -28,7 +29,7 @@ class Config(BaseSettings):
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
     
     # Monitoring
-    MONITORING_INTERVAL_MINUTES: int = 15
+    MONITORING_INTERVAL_MINUTES: int = 1
     MONITORING_DELAY_RANGE: List[int] = [1, 3]
     
     # Environment

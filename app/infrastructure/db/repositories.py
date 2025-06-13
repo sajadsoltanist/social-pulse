@@ -170,6 +170,11 @@ class AlertRepositoryImpl(AlertRepository):
             await self.session.rollback()
             raise
     
+    async def get_by_id(self, alert_id: int) -> Optional[Alert]:
+        result = await self.session.execute(select(AlertModel).where(AlertModel.id == alert_id))
+        alert_model = result.scalar_one_or_none()
+        return self._to_entity(alert_model) if alert_model else None
+    
     async def get_active_by_profile_id(self, profile_id: int) -> List[Alert]:
         result = await self.session.execute(
             select(AlertModel).where(
@@ -180,6 +185,40 @@ class AlertRepositoryImpl(AlertRepository):
         )
         alert_models = result.scalars().all()
         return [self._to_entity(model) for model in alert_models]
+    
+    async def get_all_by_profile_id(self, profile_id: int) -> List[Alert]:
+        result = await self.session.execute(
+            select(AlertModel).where(AlertModel.profile_id == profile_id)
+        )
+        alert_models = result.scalars().all()
+        return [self._to_entity(model) for model in alert_models]
+    
+    async def update(self, alert: Alert) -> Alert:
+        try:
+            await self.session.execute(
+                update(AlertModel)
+                .where(AlertModel.id == alert.id)
+                .values(
+                    threshold=alert.threshold,
+                    is_active=alert.is_active
+                )
+            )
+            await self.session.commit()
+            return alert
+        except Exception:
+            await self.session.rollback()
+            raise
+    
+    async def delete(self, alert_id: int) -> bool:
+        try:
+            result = await self.session.execute(
+                delete(AlertModel).where(AlertModel.id == alert_id)
+            )
+            await self.session.commit()
+            return result.rowcount > 0
+        except Exception:
+            await self.session.rollback()
+            raise
     
     async def mark_as_triggered(self, alert_id: int) -> None:
         try:

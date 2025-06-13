@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.core.entities import Profile, FollowerRecord, Alert
 from app.core.interfaces import (
+    UserRepository,
     ProfileRepository, 
     FollowerRepository, 
     AlertRepository, 
@@ -18,12 +19,14 @@ logger = logging.getLogger(__name__)
 class MonitoringServiceImpl:
     def __init__(
         self,
+        user_repository: UserRepository,
         profile_repository: ProfileRepository,
         follower_repository: FollowerRepository,
         alert_repository: AlertRepository,
         instagram_service: InstagramService,
         telegram_service: Optional[TelegramService] = None
     ):
+        self.user_repository = user_repository
         self.profile_repository = profile_repository
         self.follower_repository = follower_repository
         self.alert_repository = alert_repository
@@ -59,16 +62,18 @@ class MonitoringServiceImpl:
                         "status": "success"
                     }
                     
+                    # Always check for alerts, regardless of whether follower count changed
+                    current_count = await self.instagram_service.get_follower_count(profile.username)
+                    if current_count is not None:
+                        triggered_alerts = await self.process_alerts(profile.id, current_count)
+                        if triggered_alerts:
+                            results["alerts_triggered"] += len(triggered_alerts)
+                            profile_result["alerts_triggered"] = len(triggered_alerts)
+                    
                     if result:
                         results["updated"] += 1
                         profile_result["follower_count"] = result.followers_count
                         profile_result["previous_count"] = await self._get_previous_count(profile.id)
-                        
-                        # Check for alerts
-                        triggered_alerts = await self.process_alerts(profile.id, result.followers_count)
-                        if triggered_alerts:
-                            results["alerts_triggered"] += len(triggered_alerts)
-                            profile_result["alerts_triggered"] = len(triggered_alerts)
                     
                     results["profiles"].append(profile_result)
                     
@@ -157,10 +162,14 @@ class MonitoringServiceImpl:
                             profile = await self.profile_repository.get_by_id(profile_id)
                             if profile:
                                 await self._send_alert_notification(
-                                    profile, alert.threshold, current_count
+                                    profile, alert, current_count
                                 )
+                            else:
+                                logger.error(f"Profile {profile_id} not found for notification")
                         except Exception as e:
                             logger.error(f"Failed to send alert notification: {e}")
+                    else:
+                        logger.warning("Telegram service not available for notification")
             
         except Exception as e:
             logger.error(f"Error processing alerts for profile {profile_id}: {e}")
@@ -226,14 +235,35 @@ class MonitoringServiceImpl:
         except Exception:
             return None
 
-    async def _send_alert_notification(self, profile: Profile, threshold: int, current_count: int):
+    async def _send_alert_notification(self, profile: Profile, alert: Alert, current_count: int):
         """Send alert notification via Telegram"""
         if not self.telegram_service:
+            logger.warning("Telegram service not available")
             return
         
         try:
-            # Get user's telegram chat ID (would need to be stored in user profile)
-            # For now, we'll skip this part as it requires user management integration
-            pass
+            # Get user to retrieve telegram_chat_id
+            user = await self.user_repository.get_by_id(profile.user_id)
+            
+            if not user:
+                logger.error(f"User not found for user_id: {profile.user_id}")
+                return
+            
+            if not user.telegram_chat_id:
+                logger.warning(f"No Telegram chat ID found for user {profile.user_id} (profile: {profile.username})")
+                return
+            
+            success = await self.telegram_service.send_milestone_alert(
+                chat_id=user.telegram_chat_id,
+                username=profile.username,
+                threshold=alert.threshold,
+                current_count=current_count
+            )
+            
+            if success:
+                logger.info(f"Telegram notification sent for profile {profile.username}")
+            else:
+                logger.error(f"Failed to send Telegram notification for profile {profile.username}")
+                
         except Exception as e:
-            logger.error(f"Failed to send notification: {e}")
+            logger.error(f"Exception in _send_alert_notification: {e}")

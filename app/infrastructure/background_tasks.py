@@ -8,6 +8,7 @@ from celery.schedules import crontab
 from app.config import get_config
 from app.infrastructure.db.database import AsyncSessionLocal
 from app.infrastructure.db.repositories import (
+    UserRepositoryImpl,
     ProfileRepositoryImpl,
     FollowerRepositoryImpl,
     AlertRepositoryImpl
@@ -38,13 +39,14 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     task_acks_late=True,
     worker_max_tasks_per_child=1000,
+    include=['app.infrastructure.background_tasks'],  # Auto-discover tasks
 )
 
 # Periodic task schedule
 celery_app.conf.beat_schedule = {
     'monitor-all-profiles': {
-        'task': 'app.infrastructure.background_tasks.monitor_all_profiles',
-        'schedule': crontab(minute=f'*/{config.MONITORING_INTERVAL_MINUTES}'),
+        'task': 'monitor_all_profiles',
+        'schedule': crontab(minute='*'),
     },
 }
 
@@ -65,19 +67,28 @@ async def run_monitoring_cycle():
     instagram_service = InstagramClientImpl()
     await instagram_service.initialize()
     
+    # Create Telegram service
+    from app.config import get_config
+    from app.infrastructure.external.telegram_client import TelegramClientImpl
+    config = get_config()
+    telegram_service = TelegramClientImpl(config)
+    
     # Create database session
     async with AsyncSessionLocal() as session:
         # Create repositories
+        user_repo = UserRepositoryImpl(session)
         profile_repo = ProfileRepositoryImpl(session)
         follower_repo = FollowerRepositoryImpl(session)
         alert_repo = AlertRepositoryImpl(session)
         
         # Create monitoring service
         monitoring_service = MonitoringServiceImpl(
+            user_repository=user_repo,
             profile_repository=profile_repo,
             follower_repository=follower_repo,
             alert_repository=alert_repo,
-            instagram_service=instagram_service
+            instagram_service=instagram_service,
+            telegram_service=telegram_service
         )
         
         # Run monitoring cycle
@@ -90,19 +101,28 @@ async def run_profile_check(profile_id: int):
     instagram_service = InstagramClientImpl()
     await instagram_service.initialize()
     
+    # Create Telegram service
+    from app.config import get_config
+    from app.infrastructure.external.telegram_client import TelegramClientImpl
+    config = get_config()
+    telegram_service = TelegramClientImpl(config)
+    
     # Create database session
     async with AsyncSessionLocal() as session:
         # Create repositories
+        user_repo = UserRepositoryImpl(session)
         profile_repo = ProfileRepositoryImpl(session)
         follower_repo = FollowerRepositoryImpl(session)
         alert_repo = AlertRepositoryImpl(session)
         
         # Create monitoring service
         monitoring_service = MonitoringServiceImpl(
+            user_repository=user_repo,
             profile_repository=profile_repo,
             follower_repository=follower_repo,
             alert_repository=alert_repo,
-            instagram_service=instagram_service
+            instagram_service=instagram_service,
+            telegram_service=telegram_service
         )
         
         # Check single profile
@@ -208,12 +228,12 @@ def test_instagram_connection() -> Dict[str, Any]:
         }
 
 
-# Task routing
-celery_app.conf.task_routes = {
-    'app.infrastructure.background_tasks.monitor_all_profiles': {'queue': 'monitoring'},
-    'app.infrastructure.background_tasks.check_profile_followers': {'queue': 'monitoring'},
-    'app.infrastructure.background_tasks.test_instagram_connection': {'queue': 'testing'},
-}
+# Task routing - using default queue for simplicity
+# celery_app.conf.task_routes = {
+#     'app.infrastructure.background_tasks.monitor_all_profiles': {'queue': 'monitoring'},
+#     'app.infrastructure.background_tasks.check_profile_followers': {'queue': 'monitoring'},
+#     'app.infrastructure.background_tasks.test_instagram_connection': {'queue': 'testing'},
+# }
 
 # Error handling
 @celery_app.task(bind=True)
