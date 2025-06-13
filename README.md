@@ -140,9 +140,6 @@ docker compose -f docker-compose.dev.yml up -d
 # View logs
 docker compose -f docker-compose.dev.yml logs -f app
 
-# Run tests
-docker compose -f docker-compose.dev.yml exec app python -m pytest
-
 # Database migrations
 docker compose -f docker-compose.dev.yml exec app alembic upgrade head
 ```
@@ -156,14 +153,6 @@ app/
 └── infrastructure/ # Database and external APIs
 ```
 
-**Testing:**
-```bash
-# Analytics system test
-python test_analytics.py
-
-# Create sample data
-python test_analytics.py --create-data
-```
 
 ## Deployment
 
