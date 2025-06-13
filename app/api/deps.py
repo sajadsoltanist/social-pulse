@@ -13,6 +13,7 @@ from app.services.auth_service import AuthServiceImpl
 from app.services.profile_service import ProfileServiceImpl
 from app.services.monitoring_service import MonitoringServiceImpl
 from app.services.alert_service import AlertServiceImpl
+from app.services.analytics_service import AnalyticsServiceImpl
 from app.infrastructure.external.telegram_client import TelegramClientImpl
 from app.core.entities import User
 from app.core.exceptions import InvalidCredentialsError, UserNotFoundError, TokenExpiredError
@@ -72,6 +73,13 @@ async def get_monitoring_service(
     telegram_service: TelegramClientImpl = Depends(get_telegram_service)
 ) -> MonitoringServiceImpl:
     return MonitoringServiceImpl(user_repo, profile_repo, follower_repo, alert_repo, instagram_service, telegram_service)
+
+
+async def get_analytics_service(
+    follower_repo: FollowerRepositoryImpl = Depends(get_follower_repository),
+    profile_repo: ProfileRepositoryImpl = Depends(get_profile_repository)
+) -> AnalyticsServiceImpl:
+    return AnalyticsServiceImpl(follower_repo, profile_repo)
 
 
 async def get_current_user(
