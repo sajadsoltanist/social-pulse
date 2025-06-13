@@ -1,0 +1,33 @@
+ 
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: socialpulse
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - socialpulse
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - socialpulse
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  socialpulse:
+    driver: bridge 

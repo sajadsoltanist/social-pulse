@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.routes.auth import router as auth_router
 from app.api.routes.profiles import router as profiles_router
+from app.api.routes.monitoring import router as monitoring_router
 from app.infrastructure.db.database import create_tables, close_db
 from app.core.exceptions import (
     SocialPulseException,
@@ -12,7 +13,8 @@ from app.core.exceptions import (
     TokenExpiredError,
     ProfileNotFoundError,
     ProfileAlreadyExistsError,
-    AlertNotFoundError
+    AlertNotFoundError,
+    InstagramServiceError
 )
 from app.config import get_config
 
@@ -107,6 +109,18 @@ async def alert_not_found_handler(request: Request, exc: AlertNotFoundError):
     )
 
 
+@app.exception_handler(InstagramServiceError)
+async def instagram_service_error_handler(request: Request, exc: InstagramServiceError):
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": str(exc),
+            "error_code": "INSTAGRAM_SERVICE_ERROR",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
 @app.exception_handler(SocialPulseException)
 async def social_pulse_exception_handler(request: Request, exc: SocialPulseException):
     return JSONResponse(
@@ -151,4 +165,5 @@ async def health_check():
 
 
 app.include_router(auth_router, prefix="/auth", tags=["authentication"])
-app.include_router(profiles_router, prefix="/profiles", tags=["profiles"]) 
+app.include_router(profiles_router, prefix="/profiles", tags=["profiles"])
+app.include_router(monitoring_router) 
