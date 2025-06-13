@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from .user import Base
+from ..database import Base
 
 
 class Alert(Base):

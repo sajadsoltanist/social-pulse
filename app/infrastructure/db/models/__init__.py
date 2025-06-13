@@ -1,4 +1,5 @@
-from .user import User, Base
+from .user import User
+from ..database import Base
 from .profile import Profile
 from .alert import Alert
 from .follower_record import FollowerRecord
