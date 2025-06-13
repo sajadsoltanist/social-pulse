@@ -2,8 +2,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.db.database import get_db
-from app.infrastructure.db.repositories import UserRepositoryImpl
+from app.infrastructure.db.repositories import UserRepositoryImpl, ProfileRepositoryImpl
 from app.services.auth_service import AuthServiceImpl
+from app.services.profile_service import ProfileServiceImpl
 from app.core.entities import User
 from app.core.exceptions import InvalidCredentialsError, UserNotFoundError, TokenExpiredError
 
@@ -16,6 +17,14 @@ async def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserReposit
 
 async def get_auth_service(user_repo: UserRepositoryImpl = Depends(get_user_repository)) -> AuthServiceImpl:
     return AuthServiceImpl(user_repo)
+
+
+async def get_profile_repository(db: AsyncSession = Depends(get_db)) -> ProfileRepositoryImpl:
+    return ProfileRepositoryImpl(db)
+
+
+async def get_profile_service(profile_repo: ProfileRepositoryImpl = Depends(get_profile_repository)) -> ProfileServiceImpl:
+    return ProfileServiceImpl(profile_repo)
 
 
 async def get_current_user(

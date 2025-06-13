@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.interfaces import UserRepository, ProfileRepository, AlertRepository, FollowerRepository
 from app.core.entities import User, Profile, Alert, FollowerRecord
@@ -82,10 +82,47 @@ class ProfileRepositoryImpl(ProfileRepository):
         profile_models = result.scalars().all()
         return [self._to_entity(model) for model in profile_models]
     
+    async def get_by_username_and_user_id(self, username: str, user_id: int) -> Optional[Profile]:
+        result = await self.session.execute(
+            select(ProfileModel).where(
+                ProfileModel.username == username,
+                ProfileModel.user_id == user_id
+            )
+        )
+        profile_model = result.scalar_one_or_none()
+        return self._to_entity(profile_model) if profile_model else None
+    
     async def get_all_active(self) -> List[Profile]:
         result = await self.session.execute(select(ProfileModel).where(ProfileModel.is_active == True))
         profile_models = result.scalars().all()
         return [self._to_entity(model) for model in profile_models]
+    
+    async def update(self, profile: Profile) -> Profile:
+        try:
+            await self.session.execute(
+                update(ProfileModel)
+                .where(ProfileModel.id == profile.id)
+                .values(
+                    display_name=profile.display_name,
+                    is_active=profile.is_active
+                )
+            )
+            await self.session.commit()
+            return profile
+        except Exception:
+            await self.session.rollback()
+            raise
+    
+    async def delete(self, profile_id: int) -> bool:
+        try:
+            result = await self.session.execute(
+                delete(ProfileModel).where(ProfileModel.id == profile_id)
+            )
+            await self.session.commit()
+            return result.rowcount > 0
+        except Exception:
+            await self.session.rollback()
+            raise
     
     async def update_last_checked(self, profile_id: int) -> None:
         try:

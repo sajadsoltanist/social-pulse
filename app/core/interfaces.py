@@ -31,7 +31,19 @@ class ProfileRepository(ABC):
         pass
     
     @abstractmethod
+    async def get_by_username_and_user_id(self, username: str, user_id: int) -> Optional[Profile]:
+        pass
+    
+    @abstractmethod
     async def get_all_active(self) -> List[Profile]:
+        pass
+    
+    @abstractmethod
+    async def update(self, profile: Profile) -> Profile:
+        pass
+    
+    @abstractmethod
+    async def delete(self, profile_id: int) -> bool:
         pass
     
     @abstractmethod

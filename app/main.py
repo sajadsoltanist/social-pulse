@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.routes.auth import router as auth_router
+from app.api.routes.profiles import router as profiles_router
 from app.infrastructure.db.database import create_tables, close_db
 from app.core.exceptions import (
     SocialPulseException,
@@ -149,4 +150,5 @@ async def health_check():
     }
 
 
-app.include_router(auth_router, prefix="/auth", tags=["authentication"]) 
+app.include_router(auth_router, prefix="/auth", tags=["authentication"])
+app.include_router(profiles_router, prefix="/profiles", tags=["profiles"]) 
