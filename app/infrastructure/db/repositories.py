@@ -12,15 +12,22 @@ class UserRepositoryImpl(UserRepository):
         self.session = session
     
     async def create(self, user: User) -> User:
-        user_model = UserModel(
-            email=user.email,
-            password_hash=user.password_hash,
-            telegram_chat_id=user.telegram_chat_id
-        )
-        self.session.add(user_model)
-        await self.session.flush()
-        await self.session.refresh(user_model)
-        return self._to_entity(user_model)
+        try:
+            user_model = UserModel(
+                email=user.email,
+                password_hash=user.password_hash,
+                telegram_chat_id=user.telegram_chat_id
+            )
+            self.session.add(user_model)
+            await self.session.flush()
+            await self.session.refresh(user_model)
+            
+            created_user = self._to_entity(user_model)
+            await self.session.commit()
+            return created_user
+        except Exception:
+            await self.session.rollback()
+            raise
     
     async def get_by_id(self, user_id: int) -> Optional[User]:
         result = await self.session.execute(select(UserModel).where(UserModel.id == user_id))
@@ -47,16 +54,23 @@ class ProfileRepositoryImpl(ProfileRepository):
         self.session = session
     
     async def create(self, profile: Profile) -> Profile:
-        profile_model = ProfileModel(
-            user_id=profile.user_id,
-            username=profile.username,
-            display_name=profile.display_name,
-            is_active=profile.is_active
-        )
-        self.session.add(profile_model)
-        await self.session.flush()
-        await self.session.refresh(profile_model)
-        return self._to_entity(profile_model)
+        try:
+            profile_model = ProfileModel(
+                user_id=profile.user_id,
+                username=profile.username,
+                display_name=profile.display_name,
+                is_active=profile.is_active
+            )
+            self.session.add(profile_model)
+            await self.session.flush()
+            await self.session.refresh(profile_model)
+            
+            created_profile = self._to_entity(profile_model)
+            await self.session.commit()
+            return created_profile
+        except Exception:
+            await self.session.rollback()
+            raise
     
     async def get_by_id(self, profile_id: int) -> Optional[Profile]:
         result = await self.session.execute(select(ProfileModel).where(ProfileModel.id == profile_id))
@@ -74,11 +88,16 @@ class ProfileRepositoryImpl(ProfileRepository):
         return [self._to_entity(model) for model in profile_models]
     
     async def update_last_checked(self, profile_id: int) -> None:
-        await self.session.execute(
-            update(ProfileModel)
-            .where(ProfileModel.id == profile_id)
-            .values(last_checked=datetime.utcnow())
-        )
+        try:
+            await self.session.execute(
+                update(ProfileModel)
+                .where(ProfileModel.id == profile_id)
+                .values(last_checked=datetime.utcnow())
+            )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
     
     def _to_entity(self, model: ProfileModel) -> Profile:
         return Profile(
@@ -97,15 +116,22 @@ class AlertRepositoryImpl(AlertRepository):
         self.session = session
     
     async def create(self, alert: Alert) -> Alert:
-        alert_model = AlertModel(
-            profile_id=alert.profile_id,
-            threshold=alert.threshold,
-            is_active=alert.is_active
-        )
-        self.session.add(alert_model)
-        await self.session.flush()
-        await self.session.refresh(alert_model)
-        return self._to_entity(alert_model)
+        try:
+            alert_model = AlertModel(
+                profile_id=alert.profile_id,
+                threshold=alert.threshold,
+                is_active=alert.is_active
+            )
+            self.session.add(alert_model)
+            await self.session.flush()
+            await self.session.refresh(alert_model)
+            
+            created_alert = self._to_entity(alert_model)
+            await self.session.commit()
+            return created_alert
+        except Exception:
+            await self.session.rollback()
+            raise
     
     async def get_active_by_profile_id(self, profile_id: int) -> List[Alert]:
         result = await self.session.execute(
@@ -119,11 +145,16 @@ class AlertRepositoryImpl(AlertRepository):
         return [self._to_entity(model) for model in alert_models]
     
     async def mark_as_triggered(self, alert_id: int) -> None:
-        await self.session.execute(
-            update(AlertModel)
-            .where(AlertModel.id == alert_id)
-            .values(triggered_at=datetime.utcnow())
-        )
+        try:
+            await self.session.execute(
+                update(AlertModel)
+                .where(AlertModel.id == alert_id)
+                .values(triggered_at=datetime.utcnow())
+            )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
     
     def _to_entity(self, model: AlertModel) -> Alert:
         return Alert(
@@ -141,14 +172,21 @@ class FollowerRepositoryImpl(FollowerRepository):
         self.session = session
     
     async def create(self, record: FollowerRecord) -> FollowerRecord:
-        record_model = FollowerRecordModel(
-            profile_id=record.profile_id,
-            followers_count=record.followers_count
-        )
-        self.session.add(record_model)
-        await self.session.flush()
-        await self.session.refresh(record_model)
-        return self._to_entity(record_model)
+        try:
+            record_model = FollowerRecordModel(
+                profile_id=record.profile_id,
+                followers_count=record.followers_count
+            )
+            self.session.add(record_model)
+            await self.session.flush()
+            await self.session.refresh(record_model)
+            
+            created_record = self._to_entity(record_model)
+            await self.session.commit()
+            return created_record
+        except Exception:
+            await self.session.rollback()
+            raise
     
     async def get_latest(self, profile_id: int) -> Optional[FollowerRecord]:
         result = await self.session.execute(
