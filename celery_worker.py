@@ -18,5 +18,13 @@ Usage:
 
 from app.infrastructure.background_tasks import celery_app
 
+# Import tasks to register them
+from app.infrastructure.background_tasks import (
+    monitor_all_profiles,
+    check_profile_followers,
+    test_instagram_connection,
+    health_check
+)
+
 if __name__ == '__main__':
     celery_app.start() 

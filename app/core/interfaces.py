@@ -57,7 +57,23 @@ class AlertRepository(ABC):
         pass
     
     @abstractmethod
+    async def get_by_id(self, alert_id: int) -> Optional[Alert]:
+        pass
+    
+    @abstractmethod
     async def get_active_by_profile_id(self, profile_id: int) -> List[Alert]:
+        pass
+    
+    @abstractmethod
+    async def get_all_by_profile_id(self, profile_id: int) -> List[Alert]:
+        pass
+    
+    @abstractmethod
+    async def update(self, alert: Alert) -> Alert:
+        pass
+    
+    @abstractmethod
+    async def delete(self, alert_id: int) -> bool:
         pass
     
     @abstractmethod
