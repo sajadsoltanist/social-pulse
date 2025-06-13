@@ -35,13 +35,13 @@ class AuthServiceImpl(AuthService):
     def verify_password(self, password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-    async def register_user(self, email: str, password: str) -> User:
+    async def register_user(self, email: str, password: str, telegram_chat_id: str) -> User:
         existing_user = await self.user_repository.get_by_email(email)
         if existing_user:
             raise InvalidCredentialsError("Email already registered")
         
         hashed_password = self.hash_password(password)
-        user = User(email=email, password_hash=hashed_password)
+        user = User(email=email, password_hash=hashed_password, telegram_chat_id=telegram_chat_id)
         return await self.user_repository.create(user)
 
     async def authenticate_user(self, email: str, password: str) -> User:
