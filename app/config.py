@@ -1,13 +1,13 @@
 from typing import Optional
 from functools import lru_cache
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
     """Application configuration loaded from environment variables."""
     
     # Database
-    DATABASE_URL: str = "postgresql://postgres:password@localhost/socialpulse"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost/socialpulse"
     
     # Security
     SECRET_KEY: str = "dev-secret-key-change-in-production"
