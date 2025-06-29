@@ -8,13 +8,15 @@ from typing import Optional
 class User:
     email: str
     password_hash: str
+    telegram_chat_id: str
     id: Optional[int] = None
-    telegram_chat_id: Optional[str] = None
     created_at: Optional[datetime] = None
     
     def __post_init__(self):
         if not self._is_valid_email(self.email):
             raise ValueError("Invalid email format")
+        if not self.telegram_chat_id:
+            raise ValueError("Telegram chat ID is required")
     
     def can_receive_notifications(self) -> bool:
         return self.telegram_chat_id is not None

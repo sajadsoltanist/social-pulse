@@ -62,18 +62,22 @@ class MonitoringServiceImpl:
                         "status": "success"
                     }
                     
-                    # Always check for alerts, regardless of whether follower count changed
-                    current_count = await self.instagram_service.get_follower_count(profile.username)
+                    current_count = None
+                    if result:
+                        current_count = result.followers_count
+                        results["updated"] += 1
+                        profile_result["follower_count"] = result.followers_count
+                        profile_result["previous_count"] = await self._get_previous_count(profile.id)
+                    else:
+                        latest_record = await self.follower_repository.get_latest(profile.id)
+                        if latest_record:
+                            current_count = latest_record.followers_count
+                    
                     if current_count is not None:
                         triggered_alerts = await self.process_alerts(profile.id, current_count)
                         if triggered_alerts:
                             results["alerts_triggered"] += len(triggered_alerts)
                             profile_result["alerts_triggered"] = len(triggered_alerts)
-                    
-                    if result:
-                        results["updated"] += 1
-                        profile_result["follower_count"] = result.followers_count
-                        profile_result["previous_count"] = await self._get_previous_count(profile.id)
                     
                     results["profiles"].append(profile_result)
                     

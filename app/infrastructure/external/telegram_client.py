@@ -1,7 +1,8 @@
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from telegram import Bot
+from telegram.request import HTTPXRequest
 from telegram.error import TelegramError, InvalidToken, NetworkError
 
 from app.core.interfaces import TelegramService
@@ -23,7 +24,17 @@ class TelegramClientImpl(TelegramService):
         if self._bot is None:
             if not self.bot_token:
                 raise TelegramServiceError("Telegram bot token not configured")
-            self._bot = Bot(token=self.bot_token)
+            
+            # Use HTTPXRequest with proper configuration
+            request = HTTPXRequest(
+                connection_pool_size=8,
+                read_timeout=30,
+                write_timeout=30,
+                connect_timeout=30,
+                pool_timeout=30
+            )
+            
+            self._bot = Bot(token=self.bot_token, request=request)
         return self._bot
 
     async def send_milestone_alert(self, chat_id: str, username: str, threshold: int, current_count: int) -> bool:
@@ -65,7 +76,7 @@ class TelegramClientImpl(TelegramService):
 
     def _format_milestone_message(self, username: str, threshold: int, current_count: int) -> str:
         """Format milestone achievement message"""
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         
         return f"""🎉 <b>Milestone Achieved!</b>
 
@@ -117,3 +128,20 @@ Your Instagram account <b>@{username}</b> has reached <b>{threshold:,}</b> follo
         except Exception as e:
             logger.error(f"Unexpected error getting chat info: {e}")
             return None
+
+    async def close(self):
+        """Close the underlying HTTP client"""
+        if self._bot and hasattr(self._bot, '_request') and self._bot._request:
+            try:
+                if hasattr(self._bot._request, 'shutdown'):
+                    await self._bot._request.shutdown()
+                elif hasattr(self._bot._request, 'close'):
+                    await self._bot._request.close()
+            except Exception as e:
+                logger.error(f"Error closing Telegram HTTP client: {e}")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()

@@ -14,7 +14,7 @@ async def register_user(
     auth_service: AuthServiceImpl = Depends(get_auth_service)
 ):
     try:
-        user = await auth_service.register_user(user_data.email, user_data.password)
+        user = await auth_service.register_user(user_data.email, user_data.password, user_data.telegram_chat_id)
         return UserResponse(
             email=user.email,
             telegram_chat_id=user.telegram_chat_id,
